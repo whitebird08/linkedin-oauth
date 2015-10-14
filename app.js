@@ -7,8 +7,6 @@ var bodyParser = require('body-parser');
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
-
-
 var session = require('cookie-session')
 var passport = require('passport')
 var LinkedInStrategy = require('passport-linkedin-oauth2').Strategy;
@@ -28,9 +26,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(session({ secret: process.env.SECRET }));
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(session({ secret: process.env.SECRET }));
 
 
 
@@ -50,6 +49,12 @@ app.use(session({ secret: process.env.SECRET }));
 //     return done(null, profile);
 //   });
 // }));
+app.use(function (req, res, next) {
+  res.locals.user = req.user
+  next()
+})
+app.use('/', routes);
+app.use('/users', users);
 
 passport.use(new LinkedInStrategy({
   clientID: process.env.LINKEDIN_CLIENT_ID,
@@ -58,7 +63,7 @@ passport.use(new LinkedInStrategy({
   scope: ['r_emailaddress', 'r_basicprofile'],
   state: true
 }, function(accessToken, refreshToken, profile, done) {
-  done(null, {id: profile.id, displayName: profile.displayName})
+  done(null, {id: profile.id, displayName: profile.displayName, token: accessToken})
 }));
 
 passport.serializeUser(function(user, done) {
@@ -83,8 +88,7 @@ app.get('/auth/linkedin/callback', passport.authenticate('linkedin', {
 }));
 
 
-app.use('/', routes);
-app.use('/users', users);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
